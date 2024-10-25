@@ -4,6 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
+@Getter
+@Setter
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserInfoResponseDto {
     private boolean status;
     private String message;
@@ -18,8 +23,8 @@ public class UserInfoResponseDto {
         private String name;
         private String email;
         private String mobileno;
-        private String exchanges;
-        private String products;
+        private List<String> exchanges;
+        private List<String> products;
         private String lastlogintime;
         private String brokerid;
     }

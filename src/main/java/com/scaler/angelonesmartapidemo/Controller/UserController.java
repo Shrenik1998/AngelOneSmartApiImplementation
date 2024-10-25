@@ -1,6 +1,7 @@
 package com.scaler.angelonesmartapidemo.Controller;
 
 import com.scaler.angelonesmartapidemo.Service.UserService;
+import com.scaler.angelonesmartapidemo.dtos.UserInfoRequestDto;
 import com.scaler.angelonesmartapidemo.dtos.LoginRequestDTO;
 import com.scaler.angelonesmartapidemo.dtos.LoginResponseDTO;
 import com.scaler.angelonesmartapidemo.dtos.UserInfoResponseDto;
@@ -15,13 +16,21 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/login")
-    public LoginResponseDTO login(@RequestBody LoginRequestDTO loginRequestDto) throws Exception {
+    public LoginResponseDTO login(
+            @RequestBody LoginRequestDTO loginRequestDto,
+            @RequestParam String privateKey) throws Exception {
         return userService.login(
                 loginRequestDto.getClientcode(),
                 loginRequestDto.getPassword(),
                 loginRequestDto.getTotp(),
-                loginRequestDto.getPrivateKey()
+                privateKey
         );
+    }
+
+
+    @GetMapping("/userInfo")
+    public UserInfoResponseDto getUserInfo(@RequestBody UserInfoRequestDto userInfoRequestDto,@RequestParam String privateKey) throws Exception {
+        return  userService.getUserInfo(userInfoRequestDto.getToken(),privateKey);
     }
 }
 
