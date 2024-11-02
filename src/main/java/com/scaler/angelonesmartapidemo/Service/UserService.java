@@ -1,110 +1,78 @@
 package com.scaler.angelonesmartapidemo.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.scaler.angelonesmartapidemo.dtos.LoginResponseDTO;
-import com.scaler.angelonesmartapidemo.dtos.UserInfoResponseDto;
-import okhttp3.*;
+import com.scaler.angelonesmartapidemo.dtos.LoginDto;
+import com.scaler.angelonesmartapidemo.dtos.UserDto;
+import com.scaler.angelonesmartapidemo.models.Users;
+import com.scaler.angelonesmartapidemo.repo.UserRepo;
+import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.task.ThreadPoolTaskSchedulerBuilder;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.net.UnknownHostException;
 
 @Service
 public class UserService {
 
     @Autowired
-    private NetworkInfoService networkInfoService;
+    private UserRepo userRepo;
 
-    private static final String LOGIN_URL = "https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword";
-    private static final String GET_USER_INFO_URL = "https://apiconnect.angelone.in/rest/secure/angelbroking/user/v1/getProfile";
+    private BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder(12);
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private AuthenticationManager authManager;
 
-    public LoginResponseDTO login(String clientCode, String password, String totp, String privateKey) throws Exception {
-        OkHttpClient client = new OkHttpClient().newBuilder().build();
-        MediaType mediaType = MediaType.parse("application/json");
+    @Autowired
+    private ThreadPoolTaskSchedulerBuilder threadPoolTaskSchedulerBuilder;
 
-        String requestBody = "{\n" +
-                "  \"clientcode\":\"" + clientCode + "\",\n" +
-                "  \"password\":\"" + password + "\",\n" +
-                "  \"totp\":\"" + totp + "\"\n" +
-                "}";
+    @Autowired
+    private JWTService jwtService;
 
-        RequestBody body = RequestBody.create(mediaType, requestBody);
+    public String register(UserDto userDto)
+    {
 
-        Request request = new Request.Builder()
-                .url(LOGIN_URL)
-                .post(body)
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Accept", "application/json")
-                .addHeader("X-UserType", "USER")
-                .addHeader("X-SourceID", "WEB")
-                .addHeader("X-ClientLocalIP", networkInfoService.getLocalIPAddress()) // Replace with CLIENT_LOCAL_IP
-                .addHeader("X-ClientPublicIP", networkInfoService.getPublicIPAddress()) // Replace with CLIENT_PUBLIC_IP
-                .addHeader("X-MACAddress", networkInfoService.getMACAddress()) // Replace with MAC_ADDRESS
-                .addHeader("X-PrivateKey", privateKey) // Use the privateKey from the DTO
-                .build();
+        Users user = userRepo.findByUserName(userDto.getUserName());
 
-        try (Response response = client.newCall(request).execute()) {
-            if (response.body() != null) {
-                String responseBody = response.body().string();
-                // Parse the response body into LoginResponseDTO using ObjectMapper
-                return objectMapper.readValue(responseBody, LoginResponseDTO.class);
-            } else {
-                // Return an error response if the body is null
-                LoginResponseDTO errorResponse = new LoginResponseDTO();
-                errorResponse.setStatus(false);
-                errorResponse.setMessage("No response body");
-                return errorResponse;
+        if(user == null)
+        {
+            user = new Users();
+            //        user.setId(userDto.getId());
+            user.setUserName(userDto.getUserName());
+            user.setPassword(userDto.getPassword());
+            user.setRole(userDto.getRole());
+            user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+            try{
+                userRepo.save(user);
+                return "User created successfully";
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            // Return an error response in case of an exception
-            LoginResponseDTO errorResponse = new LoginResponseDTO();
-            errorResponse.setStatus(false);
-            errorResponse.setMessage("Error occurred: " + e.getMessage());
-            return errorResponse;
+            catch(Exception e)
+            {
+                e.printStackTrace();
+            }
+
         }
+
+        return "User already exists";
     }
 
-    public UserInfoResponseDto getUserInfo(String token,String privateKey) throws Exception {
-        OkHttpClient client = new OkHttpClient().newBuilder().build();
+    public String verify(LoginDto userDto)
+    {
+        Users user = new Users();
+//        user.setId(userDto.getId());
+        user.setUserName(userDto.getUserName());
+        user.setPassword(userDto.getPassword());
+//        user.setRole(userDto.getRole());
 
-        // Build the GET request with headers
-        Request request = new Request.Builder()
-                .url(GET_USER_INFO_URL)
-                .get()
-                .addHeader("Authorization", "Bearer " + token)  // Set the Authorization token
-                .addHeader("Accept", "application/json")
-                .addHeader("X-UserType", "USER")
-                .addHeader("X-SourceID", "WEB")
-                .addHeader("X-ClientLocalIP", networkInfoService.getLocalIPAddress())
-                .addHeader("X-ClientPublicIP", networkInfoService.getPublicIPAddress())
-                .addHeader("X-MACAddress", networkInfoService.getMACAddress())
-                .addHeader("X-PrivateKey", privateKey)
-                .build();
+        Authentication authenticaion = authManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUserName(),user.getPassword()));
 
-        try (Response response = client.newCall(request).execute()) {
-            if (response.body() != null) {
-                String responseBody = response.body().string();
-
-                // Parse the response body into UserInfoResponseDto
-                return objectMapper.readValue(responseBody, UserInfoResponseDto.class);
-            } else {
-                // Handle no response body case
-                UserInfoResponseDto errorResponse = new UserInfoResponseDto();
-                errorResponse.setStatus(false);
-                errorResponse.setMessage("No response body");
-                return errorResponse;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            // Return an error response in case of an exception
-            UserInfoResponseDto errorResponse = new UserInfoResponseDto();
-            errorResponse.setStatus(false);
-            errorResponse.setMessage("Error occurred: " + e.getMessage());
-            return errorResponse;
+        if(authenticaion.isAuthenticated())
+        {
+            return jwtService.generateToken(user.getUserName());
         }
+
+        return "FAIL";
     }
 }

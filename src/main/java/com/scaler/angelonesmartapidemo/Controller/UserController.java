@@ -1,36 +1,35 @@
 package com.scaler.angelonesmartapidemo.Controller;
 
+import com.scaler.angelonesmartapidemo.dtos.LoginDto;
+import com.scaler.angelonesmartapidemo.dtos.UserDto;
+import com.scaler.angelonesmartapidemo.models.Users;
 import com.scaler.angelonesmartapidemo.Service.UserService;
-import com.scaler.angelonesmartapidemo.dtos.UserInfoRequestDto;
-import com.scaler.angelonesmartapidemo.dtos.LoginRequestDTO;
-import com.scaler.angelonesmartapidemo.dtos.LoginResponseDTO;
-import com.scaler.angelonesmartapidemo.dtos.UserInfoResponseDto;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/users")
 public class UserController {
 
     @Autowired
     private UserService userService;
 
-    @PostMapping("/login")
-    public LoginResponseDTO login(
-            @RequestBody LoginRequestDTO loginRequestDto,
-            @RequestParam String privateKey) throws Exception {
-        return userService.login(
-                loginRequestDto.getClientcode(),
-                loginRequestDto.getPassword(),
-                loginRequestDto.getTotp(),
-                privateKey
-        );
+    @GetMapping("/hello")
+    public String hello(HttpServletRequest request)
+    {
+        return "hello " + request.getSession().getId();
     }
 
+    @PostMapping("/register")
+    public String register(@RequestBody UserDto userDto){
+        return userService.register(userDto);
+    }
 
-    @GetMapping("/userInfo")
-    public UserInfoResponseDto getUserInfo(@RequestBody UserInfoRequestDto userInfoRequestDto,@RequestParam String privateKey) throws Exception {
-        return  userService.getUserInfo(userInfoRequestDto.getToken(),privateKey);
+    @PostMapping("/login")
+    public String login(@RequestBody LoginDto loginDto)
+    {
+        return userService.verify(loginDto);
     }
 }
 
